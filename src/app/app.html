@@ -1,0 +1,119 @@
+<div class="game-wrapper">
+
+  <!-- HUD -->
+  <div class="hud" [style.width.px]="gameWidth">
+    <div class="hud-item">Score: {{ score() }}</div>
+    <div class="hud-item hud-lives">
+      <span *ngFor="let _ of livesArray()" class="life-ship">▲</span>
+    </div>
+    <div class="hud-title">GALAGA</div>
+    <div class="hud-item hud-level">Level: {{ level() }}</div>
+    <div class="hud-item hud-right">Best: {{ getBestScore() }}</div>
+  </div>
+
+  <!-- Game board -->
+  <div class="game-container">
+    <div class="game-board"
+         [style.width.px]="gameWidth"
+         [style.height.px]="gameHeight"
+         [class.is-game-over]="gameOver()">
+
+      <!-- Enemies -->
+      <div
+        *ngFor="let e of enemies"
+        class="enemy"
+        [class.enemy-bee]="e.type === 'bee'"
+        [class.enemy-butterfly]="e.type === 'butterfly'"
+        [class.enemy-boss]="e.type === 'boss'"
+        [class.enemy-flash]="e.hitFlash > 0"
+        [style.left.px]="e.x"
+        [style.top.px]="e.y"
+        [style.width.px]="e.w"
+        [style.height.px]="e.h"
+        [style.clip-path]="enemyClip(e.type)"
+        [style.background]="enemyFill(e)"
+        [style.box-shadow]="enemyShadow(e)">
+      </div>
+
+      <!-- Player ship -->
+      <div
+        class="player"
+        [style.left.px]="playerX"
+        [style.top.px]="PLAYER_Y"
+        [style.width.px]="PLAYER_W"
+        [style.height.px]="PLAYER_H">
+      </div>
+
+      <!-- Player bullets -->
+      <div
+        *ngFor="let b of bullets"
+        class="bullet"
+        [style.left.px]="b.x"
+        [style.top.px]="b.y"
+        [style.width.px]="b.w"
+        [style.height.px]="b.h"
+        [style.background]="b.color"
+        [style.box-shadow]="'0 0 8px ' + b.color">
+      </div>
+
+      <!-- Enemy bullets -->
+      <div
+        *ngFor="let b of enemyBullets"
+        class="enemy-bullet"
+        [style.left.px]="b.x"
+        [style.top.px]="b.y">
+      </div>
+
+      <!-- Tractor beam -->
+      <div
+        *ngIf="beamActive()"
+        class="tractor-beam"
+        [class.tractor-warning]="beamWarning()"
+        [style.left.px]="beamX() - 68"
+        [style.top.px]="beamTopY()">
+      </div>
+
+      <!-- Game Over overlay -->
+      <div class="game-over-screen" *ngIf="gameOver()">
+        <div class="game-over-content">
+          <h1>Game Over!</h1>
+          <p class="final-score">Score: {{ score() }}</p>
+          <p>Level reached: {{ level() }}</p>
+          <p class="best-score" *ngIf="score() === getBestScore() && gameCount > 1">⭐ New Session Best!</p>
+          <button (click)="restartGame()" class="restart-btn">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls hint -->
+  <div class="controls">
+    ← → or A / D to move &nbsp;|&nbsp; SPACE to shoot &nbsp;|&nbsp; Dodge the tractor beam!
+  </div>
+
+  <!-- Enemy legend -->
+  <div class="legend" [style.width.px]="gameWidth">
+    <span class="legend-item bee-text">◆ Bee — 50 / 100 pts diving</span>
+    <span class="legend-item butterfly-text">◆ Butterfly — 80 / 160 pts diving</span>
+    <span class="legend-item boss-text">◆ Boss — 160 / 400 pts diving &nbsp;⚠ Tractor beam!</span>
+  </div>
+
+  <!-- Session History -->
+  <div class="history" *ngIf="sessionHistory.length > 0" [style.width.px]="gameWidth">
+    <h2>Session History</h2>
+    <table>
+      <thead>
+        <tr><th>Game</th><th>Score</th><th>Level</th><th>Time</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let record of sessionHistory" [class.best-row]="record.score === getBestScore()">
+          <td>#{{ record.gameNumber }}</td>
+          <td>{{ record.score }}</td>
+          <td>{{ record.level }}</td>
+          <td>{{ record.time }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>

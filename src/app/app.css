@@ -1,0 +1,240 @@
+.game-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+}
+
+/* ── HUD ─────────────────────────────────────────────── */
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 0 8px #00ff00;
+  box-sizing: border-box;
+}
+
+.hud-item { min-width: 160px; }
+.hud-right { text-align: right; }
+.hud-level { text-align: center; }
+.hud-title { flex: 1; text-align: center; font-size: 24px; letter-spacing: 8px; text-transform: uppercase; }
+
+.hud-lives .life-ship {
+  color: #00ff00;
+  text-shadow: 0 0 8px #00ff00;
+  margin: 0 4px;
+  font-size: 18px;
+}
+
+/* ── Game board ──────────────────────────────────────── */
+.game-container { display: flex; justify-content: center; }
+
+.game-board {
+  position: relative;
+  background: #000408;
+  border: 3px solid #00ff00;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.4);
+  /* Starfield background using radial gradients */
+  background-image:
+    radial-gradient(circle, #fff 1px, transparent 1px),
+    radial-gradient(circle, #fff 1px, transparent 1px),
+    radial-gradient(circle, #aaddff 1px, transparent 1px),
+    radial-gradient(circle, #fff 1px, transparent 1px),
+    radial-gradient(circle, #aaaaff 1px, transparent 1px);
+  background-size:
+    200px 200px, 300px 300px, 250px 250px, 180px 180px, 350px 350px;
+  background-position:
+    50px 80px, 20px 140px, 100px 30px, 160px 200px, 80px 260px;
+  background-color: #000408;
+}
+
+.game-board.is-game-over .enemy,
+.game-board.is-game-over .player,
+.game-board.is-game-over .bullet,
+.game-board.is-game-over .enemy-bullet,
+.game-board.is-game-over .tractor-beam {
+  opacity: 0.15;
+}
+
+/* ── Enemies ─────────────────────────────────────────── */
+.enemy {
+  position: absolute;
+  transition: background 0.05s;
+}
+
+.enemy-flash {
+  background: #ffffff !important;
+  box-shadow: 0 0 20px #ffffff, 0 0 40px #ffffff !important;
+}
+
+/* ── Player ship ─────────────────────────────────────── */
+.player {
+  position: absolute;
+  background: #00ff00;
+  box-shadow: 0 0 14px #00ff00;
+  clip-path: polygon(50% 0%, 100% 100%, 75% 80%, 50% 90%, 25% 80%, 0% 100%);
+}
+
+/* ── Bullets ─────────────────────────────────────────── */
+.bullet {
+  position: absolute;
+  border-radius: 3px;
+}
+
+.enemy-bullet {
+  position: absolute;
+  width: 6px;
+  height: 14px;
+  background: #ff4444;
+  border-radius: 3px;
+  box-shadow: 0 0 8px #ff4444, 0 0 16px rgba(255,68,68,0.5);
+}
+
+/* ── Tractor beam ────────────────────────────────────── */
+.tractor-beam {
+  position: absolute;
+  width: 136px;
+  height: 320px;
+  clip-path: polygon(36% 0%, 64% 0%, 100% 100%, 0% 100%);
+  background: linear-gradient(180deg, rgba(0,255,136,0.7) 0%, rgba(0,255,136,0.2) 60%, rgba(0,255,136,0.0) 100%);
+  animation: beam-flicker 0.15s linear infinite alternate;
+  pointer-events: none;
+}
+
+.tractor-warning {
+  background: linear-gradient(180deg, rgba(255,220,0,0.6) 0%, rgba(255,220,0,0.15) 60%, transparent 100%);
+  animation: beam-warning-pulse 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes beam-flicker {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+
+@keyframes beam-warning-pulse {
+  from { opacity: 0.4; }
+  to   { opacity: 0.9; }
+}
+
+/* ── Game Over overlay ───────────────────────────────── */
+.game-over-screen {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.game-over-content {
+  text-align: center;
+  padding: 48px 56px;
+  border: 2px solid #ff0000;
+  border-radius: 12px;
+  background: rgba(255, 0, 0, 0.08);
+}
+
+.game-over-content h1 {
+  color: #ff2222;
+  font-size: 52px;
+  margin: 0 0 16px;
+  text-shadow: 0 0 20px #ff0000;
+  letter-spacing: 2px;
+}
+
+.game-over-content p { color: #00ff00; font-size: 22px; margin: 8px 0; }
+.final-score  { font-size: 28px !important; font-weight: bold; }
+.best-score   { color: #ffd700 !important; font-size: 20px !important; }
+
+.restart-btn {
+  margin-top: 24px;
+  padding: 14px 40px;
+  font-size: 20px;
+  background: #00ff00;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 6px;
+  box-shadow: 0 0 14px #00ff00;
+  transition: all 0.15s;
+}
+
+.restart-btn:hover {
+  background: #44ff44;
+  box-shadow: 0 0 24px #00ff00;
+  transform: scale(1.06);
+}
+
+/* ── Controls & legend ───────────────────────────────── */
+.controls {
+  color: #00bb00;
+  font-size: 15px;
+  text-align: center;
+  margin-top: 12px;
+  letter-spacing: 1px;
+}
+
+.legend {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 20px;
+  margin-top: 10px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #004400;
+  font-size: 14px;
+  font-weight: bold;
+  box-sizing: border-box;
+}
+
+.legend-item { letter-spacing: 1px; }
+.bee-text       { color: #ff6622; text-shadow: 0 0 6px #ff6622; }
+.butterfly-text { color: #44ccff; text-shadow: 0 0 6px #44ccff; }
+.boss-text      { color: #44ff44; text-shadow: 0 0 6px #44ff44; }
+
+/* ── Session History ─────────────────────────────────── */
+.history { margin-top: 24px; box-sizing: border-box; }
+
+.history h2 {
+  color: #00ff00;
+  text-shadow: 0 0 8px #00ff00;
+  margin: 0 0 12px;
+  font-size: 18px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.history table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #004400;
+  font-size: 15px;
+}
+
+.history th {
+  background: rgba(0,100,0,0.4);
+  color: #00ff00;
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid #006600;
+  letter-spacing: 1px;
+}
+
+.history td { color: #aaffaa; padding: 8px 16px; border-bottom: 1px solid #002200; }
+.history tr.best-row td { color: #ffd700; font-weight: bold; }
+.history tr.best-row td:first-child::before { content: '⭐ '; }
+.history tr:last-child td { border-bottom: none; }
