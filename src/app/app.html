@@ -11,6 +11,13 @@
     <div class="hud-item hud-right">Best: {{ getBestScore() }}</div>
   </div>
 
+  <!-- Power-up status bar -->
+  <div class="powerup-bar" [style.width.px]="gameWidth" *ngIf="activePowerUp"
+       [style.border-color]="powerUpColor()" [style.color]="powerUpColor()">
+    <span class="powerup-name">{{ powerUpName() }}</span>
+    <span class="powerup-timer">{{ powerUpSeconds() }}s</span>
+  </div>
+
   <!-- Game board -->
   <div class="game-container">
     <div class="game-board"
@@ -35,6 +42,27 @@
         [style.box-shadow]="enemyShadow(e)">
       </div>
 
+      <!-- Power-ups -->
+      <div
+        *ngFor="let pu of powerUps"
+        class="power-up"
+        [style.left.px]="pu.x"
+        [style.top.px]="pu.y"
+        [style.background]="pu.color"
+        [style.box-shadow]="'0 0 14px 4px ' + pu.color"
+        [style.border-color]="pu.color">{{ pu.label }}</div>
+
+      <!-- Mega-bomb easter egg -->
+      <div *ngIf="megaBomb" class="mega-bomb"
+           [style.left.px]="megaBomb.x"
+           [style.top.px]="megaBomb.y">☢</div>
+
+      <!-- Nuke explosion -->
+      <div *ngIf="explosionActive" class="nuke-explosion"
+           [style.left.px]="explosionX - EXPLOSION_RADIUS"
+           [style.top.px]="explosionY - EXPLOSION_RADIUS">
+      </div>
+
       <!-- Player ship -->
       <div
         class="player"
@@ -42,6 +70,14 @@
         [style.top.px]="PLAYER_Y"
         [style.width.px]="PLAYER_W"
         [style.height.px]="PLAYER_H">
+      </div>
+
+      <!-- Shield orb -->
+      <div *ngIf="shieldActive()" class="shield-orb"
+        [style.left.px]="playerX - 8"
+        [style.top.px]="PLAYER_Y - 8"
+        [style.width.px]="PLAYER_W + 16"
+        [style.height.px]="PLAYER_H + 16">
       </div>
 
       <!-- Player bullets -->
