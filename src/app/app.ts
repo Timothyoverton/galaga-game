@@ -94,6 +94,7 @@ export class App implements OnInit, OnDestroy {
   sessionHistory: GameRecord[] = [];
   gameCount = 0;
   gameLoop: number | null = null;
+  private lastTime = 0;
   keys: { [k: string]: boolean } = {};
 
   readonly DEFS: Record<EnemyType, { w: number; h: number; health: number; points: number; divePoints: number; color: string }> = {
@@ -168,42 +169,51 @@ export class App implements OnInit, OnDestroy {
 
   startLoop() {
     if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
-    const tick = () => { if (!this.gameOver()) this.update(); this.gameLoop = requestAnimationFrame(tick); };
+    this.lastTime = 0;
+    const tick = (timestamp: number) => {
+      if (this.lastTime === 0) this.lastTime = timestamp;
+      const dt = Math.min(timestamp - this.lastTime, 50);
+      this.lastTime = timestamp;
+      const f = dt / (1000 / 60);
+      if (!this.gameOver()) this.update(f);
+      this.gameLoop = requestAnimationFrame(tick);
+    };
     this.gameLoop = requestAnimationFrame(tick);
   }
 
-  update() {
-    this.updateEntries();
-    this.updateFormation();
-    this.updateDiving();
-    this.updateTractorBeam();
-    this.updatePlayer();
-    this.updateBullets();
-    this.updateEnemyBullets();
-    this.updatePowerUps();
-    this.updateMegaBomb();
-    if (this.explosionTimer > 0 && --this.explosionTimer === 0) this.explosionActive = false;
+  update(f: number) {
+    this.updateEntries(f);
+    this.updateFormation(f);
+    this.updateDiving(f);
+    this.updateTractorBeam(f);
+    this.updatePlayer(f);
+    this.updateBullets(f);
+    this.updateEnemyBullets(f);
+    this.updatePowerUps(f);
+    this.updateMegaBomb(f);
+    if (this.explosionTimer > 0) { this.explosionTimer -= f; if (this.explosionTimer <= 0) this.explosionActive = false; }
     if (!this.megaBombSpawned && this.allEntered && this.initialEnemyCount > 0
         && this.enemies.length > 0 && this.enemies.length <= Math.floor(this.initialEnemyCount / 2)) {
       this.spawnMegaBomb();
       this.megaBombSpawned = true;
     }
-    this.divingEnemyShoot();
-    this.checkStuck();
-    for (const e of this.enemies) { if (e.hitFlash > 0) e.hitFlash--; }
+    this.divingEnemyShoot(f);
+    this.checkStuck(f);
+    for (const e of this.enemies) { if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - f); }
     if (this.allEntered && this.enemies.length === 0) this.nextLevel();
   }
 
   // ── Entry animation ────────────────────────────────────
-  updateEntries() {
+  updateEntries(f: number) {
     let pending = false;
     for (const e of this.enemies) {
       if (e.state === 'waiting') {
         pending = true;
-        if (--e.waitDelay <= 0) { e.state = 'entering'; this.setupEntryPath(e); }
+        e.waitDelay -= f;
+        if (e.waitDelay <= 0) { e.state = 'entering'; this.setupEntryPath(e); }
       } else if (e.state === 'entering') {
         pending = true;
-        e.t += e.speed;
+        e.t += e.speed * f;
         if (e.t >= 1) { e.x = e.homeX; e.y = e.homeY; e.state = 'formation'; }
         else           { e.x = this.bz(e.t, e.bx); e.y = this.bz(e.t, e.by); }
       }
@@ -229,14 +239,14 @@ export class App implements OnInit, OnDestroy {
   }
 
   // ── Formation ─────────────────────────────────────────
-  updateFormation() {
+  updateFormation(f: number) {
     const inF = this.enemies.filter(e => e.state === 'formation');
     if (inF.length === 0) {
-      this.formationOffsetX *= 0.97; // decay toward 0 so returning enemies land on-screen
+      this.formationOffsetX *= Math.pow(0.97, f); // decay toward 0 so returning enemies land on-screen
       return;
     }
 
-    this.formationOffsetX += this.formationSpeed * this.formationDir;
+    this.formationOffsetX += this.formationSpeed * this.formationDir * f;
 
     // Compute the actual left/right edges of the whole formation
     let minEdge = Infinity, maxEdge = -Infinity;
@@ -260,7 +270,8 @@ export class App implements OnInit, OnDestroy {
     }
 
     if (!this.allEntered) return;
-    if (++this.diveTimer >= this.nextDiveAt) {
+    this.diveTimer += f;
+    if (this.diveTimer >= this.nextDiveAt) {
       this.diveTimer = 0;
       const lv = this.level();
       this.nextDiveAt = Math.max(90, 220 - lv * 12) + Math.random() * 60;
@@ -328,10 +339,10 @@ export class App implements OnInit, OnDestroy {
   }
 
   // ── Dive / Return movement ─────────────────────────────
-  updateDiving() {
+  updateDiving(f: number) {
     for (const e of this.enemies) {
       if (e.state !== 'diving' && e.state !== 'returning') continue;
-      e.t += e.speed;
+      e.t += e.speed * f;
       e.x = this.bz(e.t, e.bx); e.y = this.bz(e.t, e.by);
       if (e.state === 'diving' && (e.t >= 1 || e.y > this.gameHeight + 60)) this.setupReturnPath(e);
       else if (e.state === 'returning' && e.t >= 1) {
@@ -358,7 +369,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   // ── Tractor beam ───────────────────────────────────────
-  updateTractorBeam() {
+  updateTractorBeam(f: number) {
     if (!this.tractorBeam) return;
     const boss = this.enemies.find(e => e.id === this.tractorBeam!.bossId);
     if (!boss || (boss.state !== 'diving' && boss.state !== 'returning')) { this.tractorBeam = null; return; }
@@ -366,7 +377,8 @@ export class App implements OnInit, OnDestroy {
     this.tractorBeam.x    = boss.x + boss.w / 2;
     this.tractorBeam.topY = boss.y + boss.h;
 
-    if (--this.tractorBeam.phaseTimer <= 0) {
+    this.tractorBeam.phaseTimer -= f;
+    if (this.tractorBeam.phaseTimer <= 0) {
       if (this.tractorBeam.phase === 'warning') { this.tractorBeam.phase = 'active'; this.tractorBeam.phaseTimer = 200; }
       else { this.tractorBeam = null; return; }
     }
@@ -378,20 +390,21 @@ export class App implements OnInit, OnDestroy {
     if (depth > 0 && depth < 320) {
       const hw = 12 + 55 * (depth / 320);
       if (Math.abs(pcx - bx) <= hw) {
-        if (++this.tractorBeam.captureTimer >= 90) { this.tractorBeam = null; this.playerHit(); }
+        this.tractorBeam.captureTimer += f;
+        if (this.tractorBeam.captureTimer >= 90) { this.tractorBeam = null; this.playerHit(); }
       } else {
-        this.tractorBeam.captureTimer = Math.max(0, this.tractorBeam.captureTimer - 2);
+        this.tractorBeam.captureTimer = Math.max(0, this.tractorBeam.captureTimer - 2 * f);
       }
     }
   }
 
   // ── Player ────────────────────────────────────────────
-  updatePlayer() {
-    if (this.keys['arrowleft'] || this.keys['a']) this.playerX = Math.max(0, this.playerX - this.PLAYER_SPD);
-    if (this.keys['arrowright'] || this.keys['d']) this.playerX = Math.min(this.gameWidth - this.PLAYER_W, this.playerX + this.PLAYER_SPD);
-    if (this.bulletCooldown > 0) this.bulletCooldown--;
+  updatePlayer(f: number) {
+    if (this.keys['arrowleft'] || this.keys['a']) this.playerX = Math.max(0, this.playerX - this.PLAYER_SPD * f);
+    if (this.keys['arrowright'] || this.keys['d']) this.playerX = Math.min(this.gameWidth - this.PLAYER_W, this.playerX + this.PLAYER_SPD * f);
+    if (this.bulletCooldown > 0) this.bulletCooldown -= f;
     const cooldown = this.activePowerUp === 'rapid' ? 5 : this.BULLET_COOLDOWN;
-    if (this.keys[' '] && this.bulletCooldown === 0) { this.shootPlayer(); this.bulletCooldown = cooldown; }
+    if (this.keys[' '] && this.bulletCooldown <= 0) { this.shootPlayer(); this.bulletCooldown = cooldown; }
   }
 
   shootPlayer() {
@@ -404,10 +417,12 @@ export class App implements OnInit, OnDestroy {
     else                      this.bullets.push(make(0));
   }
 
-  divingEnemyShoot() {
+  divingEnemyShoot(f: number) {
     const shootCutoff = this.PLAYER_Y - this.PLAYER_H * 3;
     for (const e of this.enemies) {
-      if (e.state !== 'diving' || --e.shootTimer > 0) continue;
+      if (e.state !== 'diving') continue;
+      e.shootTimer -= f;
+      if (e.shootTimer > 0) continue;
       e.shootTimer = 45 + Math.floor(Math.random() * 50);
       if (e.y + e.h > shootCutoff) continue; // too close — no shooting below this line
       const cx = e.x + e.w/2, cy = e.y + e.h;
@@ -428,9 +443,9 @@ export class App implements OnInit, OnDestroy {
     this.megaBomb = { x: goRight ? -44 : this.gameWidth + 4, y: avgY - 20, w: 40, h: 40, dx: goRight ? 3.5 : -3.5 };
   }
 
-  updateMegaBomb() {
+  updateMegaBomb(f: number) {
     if (!this.megaBomb) return;
-    this.megaBomb.x += this.megaBomb.dx;
+    this.megaBomb.x += this.megaBomb.dx * f;
     if (this.megaBomb.x + this.megaBomb.w < -20 || this.megaBomb.x > this.gameWidth + 20) {
       this.megaBomb = null;
     }
@@ -456,9 +471,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   // ── Power-ups ──────────────────────────────────────────
-  updatePowerUps() {
+  updatePowerUps(f: number) {
     this.powerUps = this.powerUps.filter(pu => {
-      pu.y += pu.speed;
+      pu.y += pu.speed * f;
       if (pu.y > this.gameHeight) return false;
       if (this.hits(pu.x, pu.y, pu.w, pu.h, this.playerX, this.PLAYER_Y, this.PLAYER_W, this.PLAYER_H)) {
         this.activePowerUp = pu.type;
@@ -467,13 +482,13 @@ export class App implements OnInit, OnDestroy {
       }
       return true;
     });
-    if (this.powerUpTimer > 0 && --this.powerUpTimer === 0) this.activePowerUp = null;
+    if (this.powerUpTimer > 0) { this.powerUpTimer -= f; if (this.powerUpTimer <= 0) this.activePowerUp = null; }
   }
 
   // ── Collision & Bullets ────────────────────────────────
-  updateBullets() {
+  updateBullets(f: number) {
     this.bullets = this.bullets.filter(b => {
-      b.y -= b.speed;
+      b.y -= b.speed * f;
       if (b.y + b.h < 0) return false;
       if (this.megaBomb && this.hits(b.x, b.y, b.w, b.h, this.megaBomb.x, this.megaBomb.y, this.megaBomb.w, this.megaBomb.h)) {
         this.triggerExplosion(this.megaBomb.x + this.megaBomb.w / 2, this.megaBomb.y + this.megaBomb.h / 2);
@@ -504,9 +519,9 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
-  updateEnemyBullets() {
+  updateEnemyBullets(f: number) {
     this.enemyBullets = this.enemyBullets.filter(b => {
-      b.x += b.dx; b.y += b.dy;
+      b.x += b.dx * f; b.y += b.dy * f;
       if (b.y > this.gameHeight || b.x < -10 || b.x > this.gameWidth + 10) return false;
       if (this.hits(b.x-3, b.y-3, 6, 6, this.playerX, this.PLAYER_Y, this.PLAYER_W, this.PLAYER_H)) {
         this.playerHit(); return false;
@@ -550,15 +565,16 @@ export class App implements OnInit, OnDestroy {
     console.log('===================');
   }
 
-  checkStuck() {
+  checkStuck(f: number) {
     if (!this.allEntered || this.enemies.length === 0) { this.stuckTimer = 0; return; }
     const anyOnScreen = this.enemies.some(e =>
       (e.state === 'formation' || e.state === 'entering') &&
       e.x + e.w > 0 && e.x < this.gameWidth
     );
     if (anyOnScreen) { this.stuckTimer = 0; return; }
-    this.stuckTimer++;
-    if (this.stuckTimer === 120) this.debugLog();
+    const prev = this.stuckTimer;
+    this.stuckTimer += f;
+    if (prev < 120 && this.stuckTimer >= 120) this.debugLog();
     if (this.stuckTimer >= 480) {
       this.stuckTimer = 0;
       this.tractorBeam = null;
